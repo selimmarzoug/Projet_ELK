@@ -1,0 +1,175 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║                                                                   ║
+║          🎯 PROMPT 8 - CONFIGURATION KIBANA DASHBOARD             ║
+║                    E-Commerce Logs Dashboard                      ║
+║                                                                   ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+📋 CHECKLIST RAPIDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ ÉTAPE 1 : UPLOADER LES DONNÉES
+   └─→ http://localhost:8000/upload
+       • Fichier : ecommerce_transactions.csv
+       • 100 transactions e-commerce (8h-17h45)
+       • Vérifier : curl localhost:9200/logstash-*/_count
+
+⏳ ÉTAPE 2 : CRÉER L'INDEX PATTERN
+   └─→ http://localhost:5601/app/management/kibana/dataViews
+       • Nom : Logs Pattern
+       • Pattern : logstash-*
+       • Timestamp : @timestamp
+
+⏳ ÉTAPE 3 : CRÉER LES VISUALISATIONS
+   └─→ http://localhost:5601/app/visualize
+   
+   1️⃣  Transactions par Heure (Area Chart)
+       • Type : Area/Line
+       • Y-axis : Count
+       • X-axis : Date Histogram (@timestamp, 1h)
+       • Save as : "E-Commerce - Transactions par Heure"
+   
+   2️⃣  Top 10 Erreurs (Horizontal Bar)
+       • Type : Horizontal Bar
+       • Filter : status = "failed"
+       • Y-axis : Count
+       • X-axis : Terms (error_message.keyword, top 10)
+       • Save as : "E-Commerce - Top 10 Erreurs"
+   
+   3️⃣  Répartition Paiements (Pie Chart)
+       • Type : Pie/Donut
+       • Slice size : Count
+       • Split slices : Terms (payment_type.keyword)
+       • Save as : "E-Commerce - Répartition Paiements"
+
+⏳ ÉTAPE 4 : CRÉER LE DASHBOARD
+   └─→ http://localhost:5601/app/dashboards
+       • Create dashboard
+       • Add from library → 3 visualisations
+       • Layout :
+         ┌─────────────────────────────────────┐
+         │  Transactions/Heure (large, haut)   │
+         ├──────────────────┬──────────────────┤
+         │  Top 10 Erreurs  │  Répartition    │
+         │  (Horizontal Bar)│  (Pie Chart)    │
+         └──────────────────┴──────────────────┘
+       • Save : "E-Commerce Logs Dashboard"
+
+⏳ ÉTAPE 5 : EXPORTER LE DASHBOARD
+   • Méthode 1 : Stack Management → Saved Objects → Export
+   • Méthode 2 : ./export_kibana_dashboard.sh
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔗 LIENS RAPIDES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌐 Upload Interface    → http://localhost:8000/upload
+🌐 Kibana Home         → http://localhost:5601
+🌐 Discover            → http://localhost:5601/app/discover
+🌐 Visualize           → http://localhost:5601/app/visualize
+🌐 Dashboards          → http://localhost:5601/app/dashboards
+🌐 Data Views          → http://localhost:5601/app/management/kibana/dataViews
+🌐 Saved Objects       → http://localhost:5601/app/management/kibana/objects
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ COMMANDES UTILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Lancer le guide interactif
+./kibana_setup.sh
+
+# Vérifier les documents indexés
+curl -s localhost:9200/logstash-*/_count | jq
+
+# Voir les transactions échouées
+curl -s -X POST localhost:9200/logstash-*/_search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"match":{"status":"failed"}},"size":5}' | jq
+
+# Top des erreurs
+curl -s -X POST localhost:9200/logstash-*/_search \
+  -H 'Content-Type: application/json' \
+  -d '{"size":0,"aggs":{"errors":{"terms":{"field":"error_message.keyword"}}}}' | jq
+
+# Répartition paiements
+curl -s -X POST localhost:9200/logstash-*/_search \
+  -H 'Content-Type: application/json' \
+  -d '{"size":0,"aggs":{"payments":{"terms":{"field":"payment_type.keyword"}}}}' | jq
+
+# Exporter le dashboard (après création)
+./export_kibana_dashboard.sh
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 Guide complet pas à pas     : KIBANA_SETUP_GUIDE.md
+📖 Résumé du Prompt 8          : PROMPT8_SUMMARY.md
+📖 README général du projet    : README.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💾 DONNÉES E-COMMERCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Fichier : ecommerce_transactions.csv
+• 100 transactions (25 novembre 2025, 8h00-17h45)
+• 75 success (75%) + 25 failed (25%)
+
+Types de paiement :
+  • credit_card (principal)
+  • paypal
+  • debit_card
+  • bank_transfer
+
+Catégories produits :
+  • Electronics (principal)
+  • Clothing, Sports, Food, Home, Beauty, Books
+
+Pays : France (majoritaire), Germany, Italy, Spain, Belgium
+
+Types d'erreurs :
+  • Payment declined - insufficient funds
+  • Card validation failed
+  • Network timeout
+  • Payment gateway error
+  • Card expired
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 OBJECTIFS DES VISUALISATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Transactions par Heure
+   → Identifier les pics d'activité
+   → Détecter les heures creuses
+   → Planifier la capacité
+
+📊 Top 10 Erreurs
+   → Prioriser les corrections
+   → Améliorer le taux de réussite
+   → Identifier les problèmes récurrents
+
+📊 Répartition Paiements
+   → Comprendre les préférences clients
+   → Optimiser les options de paiement
+   → Détecter les anomalies
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ CONSEILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Utilisez les champs .keyword pour les agrégations
+• Ajoutez des filtres interactifs au dashboard
+• Personnalisez les couleurs pour améliorer la lisibilité
+• Prenez des captures d'écran de chaque étape
+• Testez l'export et l'import du dashboard
+• Documentez vos choix de configuration
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Bon courage pour la configuration Kibana! 🚀

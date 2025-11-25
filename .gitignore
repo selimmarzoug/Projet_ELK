@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data
+data/
+uploads/
+*.csv
+*.json
+
+# Docker
+.env.local
+
+# Elasticsearch
+elasticsearch-data/
+
+# MongoDB
+mongodb-data/
+
+# Backup files
+*.old
+*.backup
+*.bak
+
+# Temporary files
+tmp/
+temp/

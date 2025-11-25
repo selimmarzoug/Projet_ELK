@@ -1,0 +1,9 @@
+- pipeline.id: csv-logs
+  path.config: "/usr/share/logstash/pipeline/csv-pipeline.conf"
+  pipeline.workers: 1
+  pipeline.batch.size: 125
+
+- pipeline.id: json-logs
+  path.config: "/usr/share/logstash/pipeline/json-pipeline.conf"
+  pipeline.workers: 1
+  pipeline.batch.size: 125

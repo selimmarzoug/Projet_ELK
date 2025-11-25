@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - ELK Stack Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* KPI Cards */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-lg);
+        transition: var(--transition);
+        border-left: 4px solid transparent;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .kpi-card.primary { border-left-color: var(--primary); }
+    .kpi-card.success { border-left-color: var(--secondary); }
+    .kpi-card.danger { border-left-color: var(--danger); }
+    .kpi-card.warning { border-left-color: var(--warning); }
+
+    .kpi-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .kpi-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .kpi-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .kpi-icon.primary { background: rgba(99, 102, 241, 0.1); color: var(--primary); }
+    .kpi-icon.success { background: rgba(16, 185, 129, 0.1); color: var(--secondary); }
+    .kpi-icon.danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+    .kpi-icon.warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+
+    .kpi-label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    /* Chart Section */
+    .chart-section {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        box-shadow: var(--shadow-lg);
+        margin-bottom: 2rem;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border);
+    }
+
+    .chart-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .chart-subtitle {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    .chart-container {
+        position: relative;
+        height: 400px;
+    }
+
+    /* Quick Links */
+    .quick-links {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .quick-link-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        box-shadow: var(--shadow-lg);
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .quick-link-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .quick-link-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: var(--radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        flex-shrink: 0;
+    }
+
+    .quick-link-icon.upload {
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        color: white;
+    }
+
+    .quick-link-icon.search {
+        background: linear-gradient(135deg, var(--secondary), #34d399);
+        color: white;
+    }
+
+    .quick-link-content h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .quick-link-content p {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    /* Loading State */
+    .loading {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-secondary);
+    }
+
+    .spinner {
+        border: 3px solid var(--border);
+        border-top: 3px solid var(--primary);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .chart-container {
+            height: 300px;
+        }
+
+        .quick-links {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1280px; margin: 2rem auto; padding: 0 2rem;">
+    
+    <!-- Page Header -->
+    <div style="text-align: center; margin-bottom: 3rem;">
+        <h1 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">
+            📊 Dashboard Principal
+        </h1>
+        <p style="color: rgba(255, 255, 255, 0.9); font-size: 1.125rem;">
+            Vue d'ensemble de votre infrastructure ELK Stack
+        </p>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <!-- Total Logs -->
+        <div class="kpi-card primary">
+            <div class="kpi-header">
+                <div>
+                    <div class="kpi-title">Total Logs</div>
+                    <div class="kpi-value" id="kpi-total">{{ data.total_logs | default(0) }}</div>
+                    <div class="kpi-label">Documents indexés</div>
+                </div>
+                <div class="kpi-icon primary">
+                    <i class="fas fa-database"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Today -->
+        <div class="kpi-card success">
+            <div class="kpi-header">
+                <div>
+                    <div class="kpi-title">Logs Aujourd'hui</div>
+                    <div class="kpi-value" id="kpi-today">{{ data.logs_today | default(0) }}</div>
+                    <div class="kpi-label">Entrées du jour</div>
+                </div>
+                <div class="kpi-icon success">
+                    <i class="fas fa-calendar-day"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Errors -->
+        <div class="kpi-card danger">
+            <div class="kpi-header">
+                <div>
+                    <div class="kpi-title">Erreurs</div>
+                    <div class="kpi-value" id="kpi-errors">{{ data.errors | default(0) }}</div>
+                    <div class="kpi-label">Logs en erreur</div>
+                </div>
+                <div class="kpi-icon danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Files Uploaded -->
+        <div class="kpi-card warning">
+            <div class="kpi-header">
+                <div>
+                    <div class="kpi-title">Fichiers Uploadés</div>
+                    <div class="kpi-value" id="kpi-files">{{ data.files_uploaded | default(0) }}</div>
+                    <div class="kpi-label">CSV & JSON traités</div>
+                </div>
+                <div class="kpi-icon warning">
+                    <i class="fas fa-file-upload"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="chart-section">
+        <div class="chart-header">
+            <div>
+                <h2 class="chart-title">📈 Évolution des Logs</h2>
+                <p class="chart-subtitle">Nombre de logs indexés par heure (24 dernières heures)</p>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="logsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+        <a href="/upload" class="quick-link-card">
+            <div class="quick-link-icon upload">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="quick-link-content">
+                <h3>Uploader des Fichiers</h3>
+                <p>Importez vos fichiers CSV ou JSON dans Logstash</p>
+            </div>
+        </a>
+
+        <a href="/search" class="quick-link-card">
+            <div class="quick-link-icon search">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="quick-link-content">
+                <h3>Rechercher dans les Logs</h3>
+                <p>Explorez et filtrez vos données Elasticsearch</p>
+            </div>
+        </a>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    // Données du backend (via Jinja2)
+    const timelineData = {{ data.timeline_data | tojson | safe }};
+
+    // Préparer les données pour Chart.js
+    const labels = timelineData.map(item => {
+        const date = new Date(item.timestamp);
+        return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    });
+
+    const counts = timelineData.map(item => item.count);
+
+    // Configuration du graphique
+    const ctx = document.getElementById('logsChart').getContext('2d');
+    const logsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Nombre de Logs',
+                data: counts,
+                borderColor: 'rgb(99, 102, 241)',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: 'rgb(99, 102, 241)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        font: {
+                            size: 14,
+                            weight: '600'
+                        },
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            return 'Logs: ' + context.parsed.y.toLocaleString('fr-FR');
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: {
+                            size: 12
+                        },
+                        callback: function(value) {
+                            return value.toLocaleString('fr-FR');
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            size: 12
+                        },
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+
+    // Animation des compteurs KPI
+    function animateValue(id, start, end, duration) {
+        const element = document.getElementById(id);
+        if (!element) return;
+        
+        const range = end - start;
+        const increment = range / (duration / 16);
+        let current = start;
+        
+        const timer = setInterval(() => {
+            current += increment;
+            if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                current = end;
+                clearInterval(timer);
+            }
+            element.textContent = Math.floor(current).toLocaleString('fr-FR');
+        }, 16);
+    }
+
+    // Animer les KPIs au chargement
+    document.addEventListener('DOMContentLoaded', function() {
+        animateValue('kpi-total', 0, {{ data.total_logs | default(0) }}, 1500);
+        animateValue('kpi-today', 0, {{ data.logs_today | default(0) }}, 1500);
+        animateValue('kpi-errors', 0, {{ data.errors | default(0) }}, 1500);
+        animateValue('kpi-files', 0, {{ data.files_uploaded | default(0) }}, 1500);
+    });
+
+    // Auto-refresh toutes les 30 secondes
+    setInterval(() => {
+        location.reload();
+    }, 30000);
+</script>
+{% endblock %}
