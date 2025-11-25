@@ -111,7 +111,10 @@ services:
       - MONGODB_USERNAME=${MONGO_ROOT_USERNAME:-admin}
       - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD:-changeme}
       - MONGODB_DATABASE=${MONGO_DATABASE:-logsdb}
-      - REDIS_HOST=redis:6379
+      - MONGO_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017
+      - MONGO_DB_NAME=${MONGO_DATABASE:-logsdb}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
     ports:
       - "8000:8000"

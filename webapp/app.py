@@ -4,10 +4,11 @@ import csv
 import json
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
 from elasticsearch import Elasticsearch
 import requests
+
+# Import du module database (Prompt 12)
+from database import init_databases, get_mongodb_db, get_redis_client, health_check as db_health_check
 
 # Créer l'instance Flask
 app = Flask(__name__)
@@ -18,32 +19,17 @@ app.config['UPLOAD_FOLDER'] = '/data/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max
 app.config['ALLOWED_EXTENSIONS'] = {'csv', 'json'}
 
-# Configuration MongoDB
-MONGODB_HOST = os.getenv('MONGODB_HOST', 'mongodb')
-MONGODB_PORT = 27017
-MONGODB_USERNAME = os.getenv('MONGODB_USERNAME', 'admin')
-MONGODB_PASSWORD = os.getenv('MONGODB_PASSWORD', 'changeme')
-MONGODB_DATABASE = os.getenv('MONGODB_DATABASE', 'logsdb')
+# Initialisation des connexions MongoDB et Redis (Prompt 12)
+print("🚀 Initialisation des connexions aux bases de données...")
+db_status = init_databases()
+print(f"📊 Statut MongoDB: {'✅ Connecté' if db_status else '❌ Échec'}")
 
-# Connexion MongoDB
-try:
-    mongo_client = MongoClient(
-        host=MONGODB_HOST,
-        port=MONGODB_PORT,
-        username=MONGODB_USERNAME,
-        password=MONGODB_PASSWORD,
-        authSource='admin',
-        serverSelectionTimeoutMS=5000
-    )
-    # Test de connexion
-    mongo_client.admin.command('ping')
-    db = mongo_client[MONGODB_DATABASE]
-    files_collection = db['files']
-    print(f"✅ Connexion MongoDB réussie : {MONGODB_HOST}:{MONGODB_PORT}/{MONGODB_DATABASE}")
-except ConnectionFailure as e:
-    print(f"❌ Erreur connexion MongoDB: {e}")
-    db = None
-    files_collection = None
+# Récupération des instances
+db = get_mongodb_db()
+redis_client = get_redis_client()
+files_collection = db['files'] if db is not None else None
+print(f"📦 MongoDB Database: {'✅' if db is not None else '❌'}")
+print(f"🔴 Redis Client: {'✅' if redis_client is not None else '❌'}")
 
 # Créer le dossier uploads s'il n'existe pas
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -216,6 +202,51 @@ def get_elasticsearch_stats():
         print(f"⚠️ Erreur lors de la récupération des stats Elasticsearch: {e}")
     
     return stats
+
+# Route Health Check (Prompt 12)
+@app.route('/health')
+def health():
+    """
+    Endpoint de health check pour vérifier l'état des services
+    Returns:
+        JSON avec le statut de chaque service (MongoDB, Redis, Elasticsearch)
+    """
+    health_status = {
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat(),
+        'services': {}
+    }
+    
+    # Check MongoDB et Redis via database.py
+    db_health = db_health_check()
+    health_status['services']['mongodb'] = db_health['mongodb']
+    health_status['services']['redis'] = db_health['redis']
+    
+    # Check Elasticsearch
+    try:
+        es_health = es_client.cluster.health()
+        health_status['services']['elasticsearch'] = {
+            'status': 'healthy',
+            'details': {
+                'cluster_name': es_health.get('cluster_name'),
+                'status': es_health.get('status'),
+                'number_of_nodes': es_health.get('number_of_nodes')
+            }
+        }
+    except Exception as e:
+        health_status['services']['elasticsearch'] = {
+            'status': 'error',
+            'details': {'error': str(e)}
+        }
+        health_status['status'] = 'degraded'
+    
+    # Déterminer le statut global
+    if any(svc.get('status') == 'error' for svc in health_status['services'].values()):
+        health_status['status'] = 'unhealthy'
+    elif any(svc.get('status') == 'disconnected' for svc in health_status['services'].values()):
+        health_status['status'] = 'degraded'
+    
+    return jsonify(health_status)
 
 # Route principale
 @app.route('/')
