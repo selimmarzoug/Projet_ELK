@@ -1,7 +1,23 @@
-# ProjetELK - Stack Monitoring & WebApp Flask
+# ProjetELK - Stack Monitoring & WebApp Flask avec Authentification
 
 ## 📚 Description
-Stack de monitoring de logs basée sur **Elasticsearch / Logstash / Kibana (ELK)** complétée par **MongoDB**, **Redis** et une application **Flask**.
+Stack de monitoring de logs basée sur **Elasticsearch / Logstash / Kibana (ELK)** complétée par **MongoDB**, **Redis** et une application **Flask** sécurisée avec système d'authentification complet.
+
+## 🔐 Système d'Authentification
+L'application est protégée par un système d'authentification complet :
+- ✅ **Inscription** : Création de compte avec validation
+- ✅ **Connexion** : Authentification sécurisée
+- ✅ **Sessions** : Gestion des sessions utilisateur (7 jours)
+- ✅ **Mots de passe hashés** : Sécurité via Werkzeug
+- ✅ **Protection des routes** : Toutes les pages nécessitent une connexion
+- ✅ **Stockage MongoDB** : Collection `users` dans `logsdb`
+
+### Première utilisation
+1. Accédez à http://localhost:8000
+2. Vous serez redirigé vers la page de connexion
+3. Cliquez sur "Créer un compte" pour l'inscription
+4. Remplissez le formulaire (username min 3 car., password min 6 car.)
+5. Vous êtes automatiquement connecté après inscription
 
 ## 🧱 Services (docker-compose)
 | Service | Port Host | Image | Persistance | Notes |
@@ -11,19 +27,52 @@ Stack de monitoring de logs basée sur **Elasticsearch / Logstash / Kibana (ELK)
 | Logstash | 5044 / 9600 | logstash:8.11.3 | Volume `logstash_data` + pipeline mount | Pipeline dans `./pipeline/logstash.conf` |
 | MongoDB | 27017 | mongo:7.0 | Volumes `mongodb_data`, `mongodb_config` | Auth root via variables .env |
 | Redis | 6379 | redis:7.2-alpine | Volume `redis_data` | Mot de passe via .env |
-| WebApp Flask | 8000 | build local | Montage code `./webapp` | Route `/` -> "Hello ELK!" |
+| WebApp Flask | 8000 | build local | Montage code `./webapp` | Application Flask avec authentification |
 | Mongo Express | 8081 | mongo-express:1.0.2-18 | - | UI web MongoDB (basic auth via .env) |
 
 ## 🌐 Endpoints principaux
-- Webapp: http://localhost:8000/
-- **Upload Interface**: http://localhost:8000/upload
-- Elasticsearch: http://localhost:9200/
-- Kibana: http://localhost:5601/
-- MongoDB: mongodb://admin:<password>@localhost:27017/
-- Redis: redis://:REDIS_PASSWORD@localhost:6379
-- Mongo Express (UI): http://localhost:8081/
 
-## 📤 Module d'Upload de Fichiers
+### Pages Web (nécessitent authentification)
+- **Accueil / Dashboard** : http://localhost:8000/
+- **Connexion** : http://localhost:8000/login
+- **Inscription** : http://localhost:8000/register
+- **Upload Interface** : http://localhost:8000/upload
+- **Recherche** : http://localhost:8000/search
+- **Health Dashboard** : http://localhost:8000/health-dashboard ⭐ NOUVEAU
+
+### API & Services
+- **API Health Check** : http://localhost:8000/health (public)
+- **Elasticsearch** : http://localhost:9200/
+- **Kibana** : http://localhost:5601/
+- **MongoDB** : mongodb://admin:changeme@localhost:27017/
+- **Redis** : redis://:changeme@localhost:6379
+- **Mongo Express (UI)** : http://localhost:8081/
+
+## 🎯 Fonctionnalités principales
+
+### 🔑 Authentification & Sécurité
+- Pages de login/register avec design moderne
+- Validation des formulaires côté serveur
+- Messages flash pour feedback utilisateur
+- Protection de toutes les routes sensibles
+- Menu utilisateur avec nom et déconnexion
+
+### 📊 Dashboard Principal
+- **Total Logs** : Nombre de documents indexés
+- **Logs Aujourd'hui** : Entrées du jour
+- **Erreurs** : Logs en erreur (status: failed)
+- **Fichiers Uploadés** : CSV & JSON traités
+- **Graphique Timeline** : Évolution des logs sur 24h
+
+### 💚 Health Dashboard (Nouveau!)
+Design moderne avec :
+- **Statut global** : Healthy / Degraded / Unhealthy
+- **Cartes des services** : Elasticsearch, MongoDB, Redis
+- **Métriques en temps réel** : Services actifs, heure système
+- **Auto-refresh** : Mise à jour automatique toutes les 30s
+- **Design élégant** : Animations, gradients, effets hover
+
+### 📤 Module d'Upload de Fichiers
 
 ### Interface Web
 Accédez à http://localhost:8000/upload pour uploader des fichiers CSV ou JSON.
@@ -598,7 +647,124 @@ docker compose up -d --force-recreate mongo-express
 - ✅ Correction index Elasticsearch (data_stream conflict)
 - ✅ Fix interpolation des champs ECS (log.file.path)
 - ✅ Nettoyage des credentials inutiles
+## 📊 Collections MongoDB
 
+### `users` (Système d'authentification)
+```javascript
+{
+  "_id": ObjectId("..."),
+  "username": "admin",
+  "email": "admin@example.com",
+  "password_hash": "$pbkdf2-sha256$...",
+  "created_at": ISODate("2026-01-02T15:00:00.000Z")
+}
+```
+
+### `files` (Métadonnées des uploads)
+```javascript
+{
+  "_id": ObjectId("69258f89087369731aad7241"),
+  "filename": "test2.csv",
+  "original_filename": "test2.csv",
+  "size": 187,
+  "type": "csv",
+  "upload_date": ISODate("2025-11-25T11:14:17.126Z"),
+  "filepath": "/data/uploads/test2.csv",
+  "status": "uploaded"
+}
+```
+
+### `search_history` (Historique des recherches)
+Stocke l'historique des requêtes de recherche avec timestamp.
+
+## 🚀 Démarrage Rapide
+
+### 1. Lancer la stack complète
+```bash
+docker compose up -d
+```
+
+### 2. Vérifier que tout fonctionne
+```bash
+# Voir l'état des conteneurs
+docker compose ps
+
+# Tester Elasticsearch
+curl http://localhost:9200/_cluster/health
+
+# Tester l'API Health
+curl http://localhost:9200/health | jq
+```
+
+### 3. Créer un compte utilisateur
+1. Ouvrez http://localhost:8000
+2. Vous serez redirigé vers `/login`
+3. Cliquez sur "Créer un compte"
+4. Remplissez :
+   - Username : `admin` (min 3 caractères)
+   - Email : `admin@example.com`
+   - Password : `admin123` (min 6 caractères)
+5. Vous êtes automatiquement connecté !
+
+### 4. Explorer l'application
+- **Dashboard** : Statistiques et graphiques
+- **Upload** : Envoyer des fichiers CSV/JSON
+- **Search** : Rechercher dans les logs
+- **Health** : Monitoring des services
+
+### 5. Uploader un fichier de test
+Le fichier `test_today_2026.csv` contient 30 transactions du jour :
+```bash
+curl -X POST -F "file=@test_today_2026.csv" \
+  http://localhost:8000/upload
+```
+
+Ou via l'interface : http://localhost:8000/upload
+
+### 6. Accéder à Kibana
+1. Ouvrez http://localhost:5601
+2. Créez un Data View : `logstash-csv-*` avec `@timestamp`
+3. Explorez vos données dans Discover
+
+## 🔧 Structure du Projet
+
+```
+ProjetELK/
+├── docker-compose.yml              # Configuration des services
+├── Dockerfile                      # Image webapp Flask
+├── requirements.txt                # Dépendances Python
+├── README.md                       # Cette documentation
+├── test_today_2026.csv            # Fichier de test avec dates récentes
+│
+├── pipeline/                       # Configuration Logstash
+│   ├── pipelines.yml              # Multi-pipeline config
+│   ├── csv-pipeline.conf          # Pipeline CSV
+│   └── json-pipeline.conf         # Pipeline JSON
+│
+└── webapp/                         # Application Flask
+    ├── app.py                     # Application principale
+    ├── database.py                # Gestion MongoDB/Redis
+    │
+    ├── models/                    # Modèles de données
+    │   ├── __init__.py
+    │   └── user.py               # Modèle User + UserManager
+    │
+    ├── routes/                    # Routes Blueprint
+    │   ├── __init__.py
+    │   └── auth.py               # Routes authentification
+    │
+    ├── templates/                 # Templates Jinja2
+    │   ├── base.html             # Template de base
+    │   ├── index.html            # Dashboard principal
+    │   ├── login.html            # Page de connexion
+    │   ├── register.html         # Page d'inscription
+    │   ├── upload.html           # Page d'upload
+    │   ├── search.html           # Page de recherche
+    │   └── health_dashboard.html # Health monitoring
+    │
+    ├── static/                    # Fichiers statiques
+    └── uploads/                   # Fichiers uploadés
+```
 ## � Prompt 8 — Configuration Kibana Dashboard E-Commerce
 
 ### Fichiers créés
@@ -696,12 +862,135 @@ Le fichier CSV contient :
 
 ---
 
+## �️ Commandes Utiles
+
+### Docker
+```bash
+# Lancer tous les services
+docker compose up -d
+
+# Arrêter tous les services
+docker compose down
+
+# Voir les logs d'un service
+docker compose logs -f webapp
+docker compose logs -f logstash
+docker compose logs -f elasticsearch
+
+# Redémarrer un service
+docker compose restart webapp
+
+# Voir l'état des conteneurs
+docker compose ps
+
+# Reconstruire l'image webapp
+docker compose build webapp
+
+# Nettoyer tout (attention : supprime les volumes)
+docker compose down -v
+```
+
+### Elasticsearch
+```bash
+# Santé du cluster
+curl http://localhost:9200/_cluster/health | jq
+
+# Lister tous les indices
+curl http://localhost:9200/_cat/indices?v
+
+# Compter les documents dans un index
+curl "http://localhost:9200/logstash-csv-*/_count" | jq
+
+# Rechercher dans les logs
+curl -X POST "http://localhost:9200/logstash-*/_search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": {"match_all": {}}, "size": 10}' | jq
+
+# Supprimer un index
+curl -X DELETE "http://localhost:9200/logstash-csv-2025.11.25"
+```
+
+### MongoDB
+```bash
+# Se connecter au shell MongoDB
+docker compose exec mongodb mongosh -u admin -p changeme --authenticationDatabase admin
+
+# Voir les bases de données
+docker compose exec mongodb mongosh -u admin -p changeme --authenticationDatabase admin \
+  --eval "show dbs"
+
+# Voir les utilisateurs
+docker compose exec mongodb mongosh -u admin -p changeme --authenticationDatabase admin \
+  --eval "db.getSiblingDB('logsdb').users.find().pretty()"
+
+# Voir les fichiers uploadés
+docker compose exec mongodb mongosh -u admin -p changeme --authenticationDatabase admin \
+  --eval "db.getSiblingDB('logsdb').files.find().pretty()"
+
+# Compter les documents
+docker compose exec mongodb mongosh -u admin -p changeme --authenticationDatabase admin \
+  --eval "db.getSiblingDB('logsdb').users.countDocuments({})"
+```
+
+### Redis
+```bash
+# Se connecter à Redis CLI
+docker compose exec redis redis-cli -a changeme
+
+# Voir toutes les clés
+docker compose exec redis redis-cli -a changeme KEYS "*"
+
+# Obtenir une valeur
+docker compose exec redis redis-cli -a changeme GET "ma-cle"
+
+# Info sur Redis
+docker compose exec redis redis-cli -a changeme INFO
+```
+
+### Webapp Flask
+```bash
+# Accéder au shell du conteneur
+docker compose exec webapp bash
+
+# Voir les fichiers uploadés
+docker compose exec webapp ls -lh /data/uploads/
+
+# Tester la connexion Python
+docker compose exec webapp python3 -c "
+from database import get_mongodb_db
+print('MongoDB:', get_mongodb_db())
+"
+```
+
+### Tests & Monitoring
+```bash
+# Tester l'API Health
+curl http://localhost:8000/health | jq
+
+# Uploader un fichier via curl
+curl -X POST -F "file=@test_today_2026.csv" \
+  http://localhost:8000/upload | jq
+
+# Voir les index patterns Kibana
+curl -s "http://localhost:5601/api/saved_objects/_find?type=index-pattern" | jq
+
+# Vérifier les pipelines Logstash
+curl http://localhost:9600/_node/stats/pipelines?pretty
+```
+
 ## 🔜 Idées futures
-- Activer sécurité Elasticsearch (API Keys / service account)
-- Ajouter Filebeat ou Metricbeat
-- Alertes Kibana sur taux d'erreur élevé
-- Tests automatisés (PyTest) pour la webapp
-- Intégration CI (GitHub Actions)
+- ✅ Système d'authentification avec MongoDB
+- ✅ Page Health Dashboard avec design moderne
+- ✅ Protection des routes sensibles
+- ✅ Upload de fichiers avec dates récentes
+- 🔜 Rôles utilisateur (admin, user, viewer)
+- 🔜 Activer sécurité Elasticsearch (API Keys / service account)
+- 🔜 Ajouter Filebeat ou Metricbeat
+- 🔜 Alertes Kibana sur taux d'erreur élevé
+- 🔜 Tests automatisés (PyTest) pour la webapp
+- 🔜 Intégration CI (GitHub Actions)
+- 🔜 Export de rapports PDF
+- 🔜 Notifications par email
 
 ## 📎 Liens utiles
 - Elasticsearch Docs: https://www.elastic.co/guide/index.html
@@ -712,4 +1001,20 @@ Le fichier CSV contient :
 - Redis Python: https://redis-py.readthedocs.io/
 
 ---
-Bon monitoring !
+
+## 👤 Auteur & Contributions
+Projet développé avec assistance IA (2 janvier 2026)
+
+### Fonctionnalités implémentées
+- ✅ Stack ELK complète avec Docker Compose
+- ✅ Application Flask avec interface moderne
+- ✅ Système d'authentification sécurisé
+- ✅ Upload de fichiers CSV/JSON
+- ✅ Dashboard de monitoring avec statistiques
+- ✅ Health Dashboard pour surveillance système
+- ✅ Recherche avancée dans les logs
+- ✅ Intégration MongoDB + Redis
+- ✅ Multi-pipeline Logstash (CSV + JSON)
+
+---
+**Bon monitoring !** 🚀📊💚

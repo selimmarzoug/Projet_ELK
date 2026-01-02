@@ -288,6 +288,43 @@
             animation: slideIn 0.6s ease-out;
         }
 
+        /* User menu styles */
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-left: auto;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: var(--radius);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--danger);
+            color: white;
+            border-radius: var(--radius);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .navbar .container {
@@ -338,15 +375,25 @@
                 <li><a href="/upload" class="{% if request.path == '/upload' %}active{% endif %}">
                     <i class="fas fa-cloud-upload-alt"></i> Upload
                 </a></li>
-                <li><a href="http://localhost:5601/app/dashboards#/view/ecommerce-dashboard" target="_blank">
-                    <i class="fas fa-chart-bar"></i> E-Commerce Logs Dashboard
+                <li><a href="/search" class="{% if request.path == '/search' %}active{% endif %}">
+                    <i class="fas fa-search"></i> Recherche
                 </a></li>
-                <li><a href="http://localhost:9200" target="_blank">
-                    <i class="fas fa-database"></i> Elasticsearch
+                <li><a href="/health-dashboard" class="{% if request.path == '/health-dashboard' %}active{% endif %}">
+                    <i class="fas fa-heartbeat"></i> Health
                 </a></li>
-                <li><a href="http://localhost:8081" target="_blank">
-                    <i class="fas fa-leaf"></i> MongoDB
+                <li><a href="http://localhost:5601/app/dashboards" target="_blank">
+                    <i class="fas fa-chart-bar"></i> Kibana
                 </a></li>
+                {% if session.get('username') %}
+                <li class="user-menu">
+                    <span class="user-info">
+                        <i class="fas fa-user-circle"></i> {{ session.get('username') }}
+                    </span>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Déconnexion
+                    </a>
+                </li>
+                {% endif %}
             </ul>
         </div>
     </nav>

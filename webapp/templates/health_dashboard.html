@@ -1,0 +1,679 @@
+{% extends "base.html" %}
+
+{% block title %}Health Dashboard - ProjetELK{% endblock %}
+
+{% block content %}
+<div class="health-dashboard-container">
+    <div class="dashboard-header">
+        <div class="header-content">
+            <div class="header-icon">
+                <i class="fas fa-heartbeat"></i>
+            </div>
+            <div class="header-text">
+                <h1>System Health Dashboard</h1>
+                <p>Monitoring de l'état de santé de tous les services</p>
+            </div>
+        </div>
+        <div class="refresh-controls">
+            <span class="last-update" id="lastUpdate">Dernière mise à jour : --:--:--</span>
+            <button class="btn-refresh" onclick="refreshHealth()">
+                <i class="fas fa-sync-alt"></i> Actualiser
+            </button>
+        </div>
+    </div>
+
+    <!-- Global Status Card -->
+    <div class="global-status-card" id="globalStatus">
+        <div class="status-icon">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+        <div class="status-info">
+            <h2>Chargement...</h2>
+            <p>Vérification de l'état des services</p>
+        </div>
+    </div>
+
+    <!-- Services Grid -->
+    <div class="services-grid" id="servicesGrid">
+        <!-- Services will be loaded here dynamically -->
+    </div>
+
+    <!-- Detailed Metrics -->
+    <div class="metrics-section">
+        <h2 class="section-title">
+            <i class="fas fa-chart-line"></i>
+            Métriques détaillées
+        </h2>
+        <div class="metrics-grid" id="metricsGrid">
+            <!-- Metrics will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Logs Section -->
+    <div class="logs-section">
+        <h2 class="section-title">
+            <i class="fas fa-list-alt"></i>
+            Événements récents
+        </h2>
+        <div class="logs-container" id="logsContainer">
+            <!-- Logs will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<style>
+    .health-dashboard-container {
+        min-height: 100vh;
+        padding: 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .dashboard-header {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        animation: slideDown 0.5s ease;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .header-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: white;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    .header-text h1 {
+        font-size: 2rem;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .header-text p {
+        color: #666;
+        font-size: 1rem;
+    }
+
+    .refresh-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5rem;
+    }
+
+    .last-update {
+        color: #666;
+        font-size: 0.875rem;
+    }
+
+    .btn-refresh {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s;
+    }
+
+    .btn-refresh:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-refresh:active {
+        transform: translateY(0);
+    }
+
+    .btn-refresh i {
+        transition: transform 0.3s;
+    }
+
+    .btn-refresh:hover i {
+        transform: rotate(180deg);
+    }
+
+    /* Global Status Card */
+    .global-status-card {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        animation: fadeIn 0.5s ease 0.2s both;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .status-icon {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        transition: all 0.3s;
+    }
+
+    .status-icon.healthy {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+    }
+
+    .status-icon.degraded {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        box-shadow: 0 0 30px rgba(245, 158, 11, 0.5);
+    }
+
+    .status-icon.unhealthy {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+    }
+
+    .status-info h2 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: #333;
+    }
+
+    .status-info p {
+        color: #666;
+        font-size: 1.1rem;
+    }
+
+    /* Services Grid */
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .service-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        transition: all 0.3s;
+        animation: fadeIn 0.5s ease both;
+    }
+
+    .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .service-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+
+    .service-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .service-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .service-icon.elasticsearch {
+        background: linear-gradient(135deg, #005571 0%, #003d4f 100%);
+    }
+
+    .service-icon.mongodb {
+        background: linear-gradient(135deg, #00ed64 0%, #00c853 100%);
+    }
+
+    .service-icon.redis {
+        background: linear-gradient(135deg, #dc382d 0%, #a41e11 100%);
+    }
+
+    .service-icon.kibana {
+        background: linear-gradient(135deg, #f04e98 0%, #d43777 100%);
+    }
+
+    .service-name {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .service-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .service-badge.healthy {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .service-badge.degraded {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .service-badge.error {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .service-details {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        font-size: 0.875rem;
+    }
+
+    .detail-label {
+        color: #666;
+        font-weight: 500;
+    }
+
+    .detail-value {
+        color: #333;
+        font-weight: 600;
+    }
+
+    /* Metrics Section */
+    .metrics-section, .logs-section {
+        margin-top: 2rem;
+    }
+
+    .section-title {
+        color: white;
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .metric-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        text-align: center;
+        transition: all 0.3s;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 1rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+        color: #666;
+        font-size: 0.875rem;
+    }
+
+    /* Logs Section */
+    .logs-container {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .log-entry {
+        padding: 1rem;
+        border-left: 4px solid #667eea;
+        background: #f9fafb;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+
+    .log-entry:hover {
+        background: #f3f4f6;
+        transform: translateX(5px);
+    }
+
+    .log-entry.success {
+        border-left-color: #10b981;
+    }
+
+    .log-entry.warning {
+        border-left-color: #f59e0b;
+    }
+
+    .log-entry.error {
+        border-left-color: #ef4444;
+    }
+
+    .log-time {
+        font-size: 0.75rem;
+        color: #666;
+        margin-bottom: 0.25rem;
+    }
+
+    .log-message {
+        color: #333;
+        font-size: 0.875rem;
+    }
+
+    @media (max-width: 768px) {
+        .health-dashboard-container {
+            padding: 1rem;
+        }
+
+        .dashboard-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .refresh-controls {
+            width: 100%;
+            align-items: stretch;
+        }
+
+        .btn-refresh {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .services-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+async function refreshHealth() {
+    const btn = document.querySelector('.btn-refresh');
+    const icon = btn.querySelector('i');
+    
+    // Disable button and spin icon
+    btn.disabled = true;
+    icon.style.transform = 'rotate(360deg)';
+    
+    try {
+        const response = await fetch('/health');
+        const data = await response.json();
+        
+        updateGlobalStatus(data);
+        updateServicesGrid(data.services);
+        updateMetrics(data);
+        updateLastUpdate();
+        
+    } catch (error) {
+        console.error('Error fetching health data:', error);
+        showError();
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => {
+            icon.style.transform = 'rotate(0deg)';
+        }, 300);
+    }
+}
+
+function updateGlobalStatus(data) {
+    const globalStatus = document.getElementById('globalStatus');
+    const statusIcon = globalStatus.querySelector('.status-icon');
+    const statusInfo = globalStatus.querySelector('.status-info');
+    
+    statusIcon.className = 'status-icon ' + data.status;
+    
+    let iconClass, title, message;
+    
+    if (data.status === 'healthy') {
+        iconClass = 'fa-check-circle';
+        title = 'Système opérationnel';
+        message = 'Tous les services fonctionnent correctement';
+    } else if (data.status === 'degraded') {
+        iconClass = 'fa-exclamation-triangle';
+        title = 'Système dégradé';
+        message = 'Certains services rencontrent des problèmes';
+    } else {
+        iconClass = 'fa-times-circle';
+        title = 'Système en panne';
+        message = 'Des services critiques sont indisponibles';
+    }
+    
+    statusIcon.innerHTML = `<i class="fas ${iconClass}"></i>`;
+    statusInfo.innerHTML = `
+        <h2>${title}</h2>
+        <p>${message}</p>
+    `;
+}
+
+function updateServicesGrid(services) {
+    const grid = document.getElementById('servicesGrid');
+    grid.innerHTML = '';
+    
+    const serviceOrder = ['elasticsearch', 'mongodb', 'redis'];
+    
+    serviceOrder.forEach(serviceName => {
+        if (services[serviceName]) {
+            const service = services[serviceName];
+            const card = createServiceCard(serviceName, service);
+            grid.appendChild(card);
+        }
+    });
+}
+
+function createServiceCard(name, service) {
+    const card = document.createElement('div');
+    card.className = 'service-card';
+    
+    const statusBadge = service.status === 'healthy' ? 'healthy' : 
+                       service.status === 'error' ? 'error' : 'degraded';
+    
+    const iconClass = name === 'elasticsearch' ? 'fa-search' :
+                     name === 'mongodb' ? 'fa-database' :
+                     name === 'redis' ? 'fa-cube' : 'fa-server';
+    
+    let detailsHtml = '';
+    if (service.details) {
+        detailsHtml = '<div class="service-details">';
+        for (const [key, value] of Object.entries(service.details)) {
+            detailsHtml += `
+                <div class="detail-row">
+                    <span class="detail-label">${formatLabel(key)}</span>
+                    <span class="detail-value">${value}</span>
+                </div>
+            `;
+        }
+        detailsHtml += '</div>';
+    }
+    
+    card.innerHTML = `
+        <div class="service-header">
+            <div class="service-title">
+                <div class="service-icon ${name}">
+                    <i class="fas ${iconClass}"></i>
+                </div>
+                <span class="service-name">${formatName(name)}</span>
+            </div>
+            <span class="service-badge ${statusBadge}">
+                ${service.status || 'unknown'}
+            </span>
+        </div>
+        ${detailsHtml}
+    `;
+    
+    return card;
+}
+
+function updateMetrics(data) {
+    const metricsGrid = document.getElementById('metricsGrid');
+    
+    const metrics = [
+        { icon: 'fa-clock', value: new Date(data.timestamp).toLocaleTimeString(), label: 'Heure système' },
+        { icon: 'fa-server', value: Object.keys(data.services).length, label: 'Services actifs' },
+        { icon: 'fa-check-circle', value: countHealthyServices(data.services), label: 'Services OK' },
+        { icon: 'fa-exclamation-circle', value: countUnhealthyServices(data.services), label: 'Services KO' }
+    ];
+    
+    metricsGrid.innerHTML = metrics.map(metric => `
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas ${metric.icon}"></i>
+            </div>
+            <div class="metric-value">${metric.value}</div>
+            <div class="metric-label">${metric.label}</div>
+        </div>
+    `).join('');
+}
+
+function countHealthyServices(services) {
+    return Object.values(services).filter(s => s.status === 'healthy').length;
+}
+
+function countUnhealthyServices(services) {
+    return Object.values(services).filter(s => s.status !== 'healthy').length;
+}
+
+function updateLastUpdate() {
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent = 
+        `Dernière mise à jour : ${now.toLocaleTimeString()}`;
+}
+
+function formatName(name) {
+    const names = {
+        'elasticsearch': 'Elasticsearch',
+        'mongodb': 'MongoDB',
+        'redis': 'Redis',
+        'kibana': 'Kibana'
+    };
+    return names[name] || name;
+}
+
+function formatLabel(key) {
+    const labels = {
+        'cluster_name': 'Cluster',
+        'status': 'Statut',
+        'number_of_nodes': 'Nœuds',
+        'error': 'Erreur'
+    };
+    return labels[key] || key;
+}
+
+function showError() {
+    const globalStatus = document.getElementById('globalStatus');
+    globalStatus.innerHTML = `
+        <div class="status-icon unhealthy">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="status-info">
+            <h2>Erreur de connexion</h2>
+            <p>Impossible de récupérer l'état des services</p>
+        </div>
+    `;
+}
+
+// Auto-refresh every 30 seconds
+setInterval(refreshHealth, 30000);
+
+// Initial load
+document.addEventListener('DOMContentLoaded', refreshHealth);
+</script>
+{% endblock %}
