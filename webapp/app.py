@@ -42,8 +42,13 @@ files_collection = db["files"] if db is not None else None
 print(f"📦 MongoDB Database: {'✅' if db is not None else '❌'}")
 print(f"🔴 Redis Client: {'✅' if redis_client is not None else '❌'}")
 
-# Créer le dossier uploads s'il n'existe pas
-os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+# Créer le dossier uploads s'il n'existe pas (seulement si pas en mode test)
+if not app.config.get("TESTING", False):
+    try:
+        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    except (PermissionError, OSError) as e:
+        print(f"⚠️  Impossible de créer {app.config['UPLOAD_FOLDER']}: {e}")
+        # En test, on ne crée pas le dossier (géré par pytest fixtures)
 
 # Configuration Elasticsearch
 ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", "elasticsearch:9200")
