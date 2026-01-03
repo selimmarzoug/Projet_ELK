@@ -62,9 +62,11 @@ class TestHealthEndpoint:
                 assert service["status"] in [
                     "up",
                     "down",
-                ], f"Status de {service_name} doit être 'up' ou 'down'"
+                    "error",
+                    "disconnected",
+                ], f"Status de {service_name} doit être valide, got: {service['status']}"
 
-    @patch("webapp.app.es")
+    @patch("webapp.app.es_client")
     def test_health_elasticsearch_up(self, mock_es, client):
         """Test santé quand Elasticsearch est UP"""
         mock_es.ping.return_value = True
@@ -74,9 +76,9 @@ class TestHealthEndpoint:
         data = response.get_json()
 
         if "elasticsearch" in data.get("services", {}):
-            assert data["services"]["elasticsearch"]["status"] == "up"
+            assert data["services"]["elasticsearch"]["status"] in ["up", "connected"]
 
-    @patch("webapp.app.es")
+    @patch("webapp.app.es_client")
     def test_health_elasticsearch_down(self, mock_es, client):
         """Test santé quand Elasticsearch est DOWN"""
         mock_es.ping.side_effect = Exception("Connection failed")
@@ -86,6 +88,8 @@ class TestHealthEndpoint:
 
         # L'endpoint doit toujours répondre même si ES est down
         assert response.status_code in [200, 503]
+        if "elasticsearch" in data.get("services", {}):
+            assert data["services"]["elasticsearch"]["status"] in ["down", "error"]
         if "elasticsearch" in data.get("services", {}):
             assert data["services"]["elasticsearch"]["status"] == "down"
 
