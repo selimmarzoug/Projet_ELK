@@ -265,21 +265,36 @@ jobs:
   deploy:
     name: 🚀 Deploy Application
     runs-on: ubuntu-latest
-    needs: push
-    if: false  # Désactivé - pas de déploiement configuré
+    needs: build
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     
     steps:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
     
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: 🏗️ Build Docker image for deployment
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: false
+        load: true
+        tags: projetelk/webapp:latest
+        cache-from: type=gha
+    
+    - name: ✅ Verify image
+      run: |
+        echo "✅ Image built successfully for deployment"
+        docker images | grep projetelk
+    
     - name: 🚀 Deploy notification
       run: |
-        echo "🚀 Deployment would happen here"
-        echo "In a real scenario, this would:"
-        echo "  - SSH to production server"
-        echo "  - Pull latest Docker image"
-        echo "  - Run docker-compose up -d"
-        echo "  - Verify deployment health"
+        echo "🚀 Deployment ready!"
+        echo "Image: projetelk/webapp:latest"
+        echo "Ready to deploy with: docker-compose up -d"
     
     - name: ✅ Deployment completed
-      run: echo "✅ Application deployed successfully"
+      run: echo "✅ Deployment validation passed"
