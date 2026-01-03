@@ -15,15 +15,19 @@ sys.path.insert(
 
 
 @pytest.fixture(scope="session")
-def app():
+def app(tmp_path_factory):
     """
     Fixture Flask app pour tous les tests
     Configure l'app en mode testing
     """
+    # Créer un répertoire temporaire pour les uploads
+    temp_upload_dir = tmp_path_factory.mktemp("uploads")
+    
     # Configuration de test
     os.environ["TESTING"] = "True"
     os.environ["FLASK_ENV"] = "testing"
     os.environ["SECRET_KEY"] = "test-secret-key-do-not-use-in-production"
+    os.environ["UPLOAD_FOLDER"] = str(temp_upload_dir)
 
     # Import de l'app (après avoir configuré les variables d'env)
     from webapp.app import app as flask_app
@@ -32,6 +36,7 @@ def app():
     flask_app.config["TESTING"] = True
     flask_app.config["WTF_CSRF_ENABLED"] = False
     flask_app.config["SERVER_NAME"] = "localhost:5000"
+    flask_app.config["UPLOAD_FOLDER"] = str(temp_upload_dir)
 
     yield flask_app
 

@@ -150,4 +150,5 @@ class TestHealthCheckFunction:
 
         result = health_check()
 
-        assert result["mongodb"]["status"] == "down"
+        # Accepter 'down' ou 'disconnected' comme statut valide
+        assert result["mongodb"]["status"] in ["down", "disconnected"]

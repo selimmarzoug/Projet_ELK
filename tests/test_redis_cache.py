@@ -40,9 +40,8 @@ class TestRedisConnection:
 
         client = get_redis_client()
 
-        # Doit gérer l'erreur gracieusement
-        # Le client peut être None ou lever une exception
-        assert client is None or isinstance(client, Exception)
+        # Doit gérer l'erreur gracieusement - retourne None en cas d'erreur
+        assert client is None
 
 
 @pytest.mark.unit
